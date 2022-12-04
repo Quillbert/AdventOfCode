@@ -23,7 +23,7 @@ fn main() {
 		let union3: HashSet<&&char> = union1.intersection(&union2).collect();
 
 		for ch in union3 {
-			let mut cha = **ch as u128;
+			let mut cha = ch as u128;
 			println!("{}", ch);
 			if cha < 96 {
 				cha = cha - (65-27);
