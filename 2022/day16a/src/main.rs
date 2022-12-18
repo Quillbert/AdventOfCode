@@ -1,70 +1,6 @@
 use std::fs;
-use std::collections::{HashMap, HashSet, BinaryHeap};
-use std::cmp::Ordering;
-use std::hash::{Hash, Hasher};
+use std::collections::HashMap;
 
-fn flow_rate(state: &HashMap<String, bool>, weights: &HashMap<String, u32>) -> u32 {
-	let mut out = 0;
-	for (pos, open) in state {
-		if *open {
-			out += weights.get(pos).unwrap();
-		}
-	}
-	out
-}
-
-#[derive(Eq, Debug)]
-struct Moment {
-	position: String,
-	state: HashMap<String, bool>,
-	possible: u32,
-	gained: u32,
-	time: u8,
-}
-
-impl PartialOrd for Moment {
-	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-		Some(self.cmp(other))
-	}
-}
-
-impl Ord for Moment {
-	fn cmp(&self, other: &Self) -> Ordering {
-		self.possible.cmp(&other.possible)
-	}
-}
-
-impl PartialEq for Moment {
-	fn eq(&self, other: &Self) -> bool {
-		self.position == other.position &&
-		self.state == other.state &&
-		self.possible == other.possible &&
-		self.time == other.time &&
-		self.gained == other.gained
-	}	
-}
-
-#[derive(Eq)]
-struct Place {
-	position: String,
-	state: HashMap<String, bool>,
-}
-
-impl Hash for Place {
-	fn hash<H: Hasher>(&self, state: &mut H) {
-		let s = format!("{}~{:?}", self.position, self.state);
-		s.hash(state);
-	}
-}
-
-impl PartialEq for Place {
-	fn eq(&self, other: &Self) -> bool {
-		self.position == other.position &&
-		self.state == other.state
-	}
-}
-
-#[derive(Debug)]
 struct Connection {
 	vertex: String,
 	distance: u8,
@@ -76,74 +12,80 @@ impl Clone for Connection {
 	}
 }
 
-fn possible_and_gained(state: &HashMap<String, bool>, weights: &HashMap<String, u32>, 
-	time: u8, gained: u32, distance: u8) -> (u32, u32) {
-	
-	let mut gained = gained;
-
-	gained += flow_rate(state, weights) * distance as u32;
-
-	let possible = weights.values().sum::<u32>() * time as u32 + gained;		
-
-	(possible, gained)
-		
-}
-
-fn solve(connections: &HashMap<String, Vec<Connection>>, weights: &HashMap<String, u32>, pos: &str,
-	possible: u32, time: u8) -> u32 {
-	let mut queue = BinaryHeap::new();
-	let mut visited = HashSet::new();
-	let start = Moment {position: String::from(pos), state: HashMap::new(), possible, gained: 0, time}; 
-	queue.push(start);
-	let place = Place {position: String::from(pos), state: HashMap::new()};
-	visited.insert(place);
-	while !queue.is_empty() {
-		if visited.len() % 100 == 0 {
-			println!("{}", visited.len());
-		}
-		let current = queue.pop().unwrap();
-		if current.time == 0 {
-			return current.gained;
-		}
-		if !*current.state.get(&current.position).unwrap_or(&false) && 
-			*weights.get(&current.position).unwrap() != 0 {
-			let mut new_state = current.state.clone();
-			new_state.insert(current.position.clone(), true);
-			let (possible, gained) = possible_and_gained(&new_state, weights, current.time - 1, current.gained, 1);
-			let new_moment = Moment {position: current.position.clone(), state: new_state, possible, gained,
-				time: current.time - 1};
-			let new_place = Place {position: String::from(&new_moment.position), state: new_moment.state.clone()};
-			if !visited.contains(&new_place) {
-				visited.insert(new_place);
-				queue.push(new_moment);
-			}
-		}
-
-		for pos in connections.get(&current.position).unwrap() {
-			let mut distance = pos.distance;
-			let pos = &pos.vertex;
-			if current.time < distance {
-				distance = current.time;
-			}
-			let (possible, gained) = possible_and_gained(&current.state, weights, current.time - distance,
-				current.gained, distance);
-			let new_moment = Moment {position: String::from(pos), state: current.state.clone(), possible,
-				gained, time: current.time-distance};
-			let new_place = Place {position: String::from(pos), state: current.state.clone()};
-			if !visited.contains(&new_place) {
-				visited.insert(new_place);
-				queue.push(new_moment);
-			}
-		}
-		if queue.is_empty() {
-			return current.possible;
+fn flow_rate(state: &HashMap<String, bool>, weights: &HashMap<String, u32>) -> u32 {
+	let mut out = 0;
+	for (pos, open) in state {
+		if *open {
+			out += weights.get(pos).unwrap();
 		}
 	}
-	0
+	out
+}
+
+fn solve(cache: &mut HashMap<String, u32>, places: &mut HashMap<String, u32>, pos: &str, 
+	connections: &HashMap<String, Vec<Connection>>, weights: &HashMap<String, u32>, 
+	state: HashMap<String, bool>, open_count: u32, time: u8, cooldown: u8) -> u32 {
+
+	if cache.len() % 1000 == 0 {
+		println!("{}", cache.len());
+	}
+
+	let key = format!("{}~{:?}~{}~{}", pos, state, time, cooldown);
+	let place = format!("{}~{:?}", pos, state);
+
+	if cache.contains_key(&key) {
+		return *cache.get(&key).unwrap();
+	}
+
+	if time <= 0 {
+		cache.insert(key, 0);
+		return 0;
+	}
+
+	let flow = flow_rate(&state, weights);
+
+	if cooldown > 0 {
+		let n = solve(cache, places, pos, connections, weights, state, open_count, time - 1, cooldown - 1);
+		cache.insert(key, n + flow);
+		return n + flow;
+	}
+
+	if open_count as usize == weights.len() {
+		let n = solve(cache, places, pos, connections, weights, state, open_count, time - 1, 0);
+		cache.insert(key, n + flow);
+		return n + flow;
+	}
+
+	if *places.get(&place).unwrap_or(&0) > time.into() {
+		cache.insert(key, 0);
+		return 0;
+	} else {
+		places.insert(place, time.into());
+	}
+
+	let mut totals = Vec::new();
+
+	if !*state.get(pos).unwrap_or(&false) {
+		let mut new_state = state.clone();
+		new_state.insert(String::from(pos), true);
+		let n = solve(cache, places, pos, connections, weights, new_state, open_count + 1, time - 1, 0);
+		totals.push(n + flow);
+	}
+
+	for new_pos in connections.get(pos).unwrap() {
+		let distance = new_pos.distance;
+		let new_pos = &new_pos.vertex;
+		let n = solve(cache, places, new_pos, connections, weights, state.clone(), open_count, time - 1, distance - 1);
+		totals.push(n + flow);
+	}
+
+	let out = totals.iter().max().unwrap();
+	cache.insert(key, *out);
+	*out
 }
 
 fn main() {
-	let input = fs::read_to_string("test.txt").unwrap();
+	let input = fs::read_to_string("input.txt").unwrap();
 
 	let mut connections = HashMap::new();
 	let mut weights = HashMap::new();
@@ -191,8 +133,10 @@ fn main() {
 		}
 	}
 
-	let possible = weights.values().sum::<u32>() * 30;
+	let mut cache = HashMap::new();
+	let mut places = HashMap::new();
+	let state = HashMap::new();
 
-	let out = solve(&connections, &weights, "AA", possible, 29);
+	let out = solve(&mut cache, &mut places, "AA", &connections, &weights, state, 0, 30, 0);
     println!("{}", out);
 }

@@ -1,3 +1,3 @@
-cp day15a/src/main.rs day15b/src/main.rs
-cp day15a/test.txt day15b/test.txt
-cp day15a/input.txt day15b/input.txt
+cp day16a/src/main.rs day16b/src/main.rs
+cp day16a/test.txt day16b/test.txt
+cp day16a/input.txt day16b/input.txt
