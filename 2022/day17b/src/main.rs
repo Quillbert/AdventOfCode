@@ -43,6 +43,7 @@ fn main() {
 	let mut checked = false;
 
 	let big = 1000000000000;
+	//let big = 2022;
 
 	let mut i = 0;
 
@@ -145,18 +146,25 @@ fn main() {
 				}
 
 				for _ in 0..bottom {
+					//space.remove(0);
+				}
+
+				while space.len() > 150 {
 					space.remove(0);
 				}
 
 				let key = format!("{}~{:?}~{}", change_index % pattern.len(), space, i % 5);
 				if !checked && cache.contains_key(&key) {
 					let (x1, y1) = cache.get(&key).unwrap();
+					println!("{}, {}", x1, y1);
 					let (x1, y1) = (*x1, *y1);
 					let (x2, y2) = (i, top);
+					println!("{}, {}", x2, y2);
 					let rise = y2 - y1;
 					let run = x2 - x1;
-					let times = (big - i)/run;
+					let times = ((big - 1) - i)/run;
 					height += rise*times;
+					top += rise*times;
 					i += run*times;
 					checked = true;
 				}
