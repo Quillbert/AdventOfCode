@@ -139,7 +139,7 @@ fn go(map: &Vec<Vec<Space>>, x: &mut i32, y: &mut i32, facing: &mut i32, distanc
 					*x = 49;	
 				},
 				(4, 3) => {
-					*y = 100;	
+					*y = 99;
 				},
 				(5, 0) => {
 					*facing = 3;
@@ -186,7 +186,7 @@ fn go(map: &Vec<Vec<Space>>, x: &mut i32, y: &mut i32, facing: &mut i32, distanc
 }
 
 fn main() {
-	let input = fs::read_to_string("test2.txt").unwrap();
+	let input = fs::read_to_string("input.txt").unwrap();
 	let parts: Vec<_> = input.split("\r\n\r\n").collect();
 
 	let map_key: Vec<_> = parts[0].lines().collect();
